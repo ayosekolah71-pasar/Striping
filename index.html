@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Aplikasi manajemen stok stiker motor - Offline First PWA | Support 10.000+ produk">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <title>Stok Strip Pro - Manajemen Stok Stiker Motor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f1f5f9; padding-bottom: 70px; }
+        
+        /* Header */
+        .header { background: #0f172a; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header h2 { font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+        .sync-status { background: #10b981; border-radius: 30px; padding: 5px 12px; font-size: 0.7rem; cursor: pointer; transition: all 0.2s; }
+        .sync-status.offline { background: #ef4444; }
+        .sync-status.syncing { background: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .menu-btn { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.3rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
+        
+        /* Dropdown Menu */
+        .menu-dropdown { position: absolute; top: 60px; right: 15px; background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 250px; z-index: 200; display: none; overflow: hidden; }
+        .menu-dropdown.show { display: block; }
+        .menu-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; transition: background 0.2s; }
+        .menu-item:active { background: #f1f5f9; }
+        .menu-item.danger { color: #dc2626; }
+        
+        /* Tabs */
+        .tabs { display: flex; background: white; overflow-x: auto; border-bottom: 1px solid #e2e8f0; }
+        .tab { flex: 1; padding: 12px 5px; text-align: center; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+        .tab.active { border-bottom-color: #2563eb; color: #2563eb; background: #eff6ff; }
+        
+        /* Main Content */
+        .main-content { padding: 15px; max-width: 600px; margin: 0 auto; }
+        .card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .form-label { font-weight: bold; font-size: 0.75rem; color: #475569; margin-bottom: 5px; display: block; }
+        .form-input { width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin-bottom: 15px; font-size: 0.9rem; transition: border-color 0.2s; }
+        .form-input:focus { outline: none; border-color: #2563eb; }
+        .btn-primary { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 40px; font-weight: bold; cursor: pointer; margin-top: 5px; transition: transform 0.1s, background 0.2s; }
+        .btn-primary:active { transform: scale(0.98); background: #1d4ed8; }
+        .btn-cancel { background: #64748b; margin-top: 10px; }
+        .btn-success { background: #10b981; }
+        
+        /* Camera/Upload Section */
+        .upload-area { background: #f8fafc; border-radius: 16px; padding: 15px; margin-bottom: 10px; border: 2px dashed #cbd5e1; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .upload-area:active { background: #f1f5f9; }
+        .upload-area span { font-size: 2rem; display: block; margin-bottom: 5px; }
+        .preview-img { width: 100%; max-height: 150px; object-fit: cover; border-radius: 12px; margin-top: 10px; }
+        .image-source-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .source-tab { flex: 1; text-align: center; padding: 8px; background: #e2e8f0; border-radius: 30px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .source-tab.active { background: #2563eb; color: white; }
+        
+        /* Tombol Kamera & Galeri */
+        .photo-buttons { display: flex; gap: 12px; margin-bottom: 15px; }
+        .photo-btn { flex: 1; padding: 14px; border-radius: 40px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s; }
+        .photo-btn:active { transform: scale(0.97); }
+        .camera-btn { background: #2563eb; color: white; }
+        .gallery-btn { background: #10b981; color: white; }
+        .photo-btn span { font-size: 1.2rem; }
+        
+        /* Product List */
+        .product-item { background: white; border-radius: 16px; padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; border: 1px solid #e2e8f0; transition: box-shadow 0.2s; }
+        .product-item:active { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .product-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #e2e8f0; cursor: pointer; }
+        .product-info { flex: 1; }
+        
+        /* Warna nama produk berdasarkan stok */
+        .product-name-stok0 { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; color: #dc2626; }
+        .product-name-stok1 { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; color: #2563eb; }
+        .product-name-stok2plus { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; color: #1e293b; }
+        
+        .product-stok { font-size: 0.8rem; color: #475569; }
+        .product-stok b { color: #2563eb; font-size: 1.1rem; }
+        .edit-btn { color: #2563eb; font-size: 0.7rem; margin-top: 5px; display: inline-block; cursor: pointer; background: #eff6ff; padding: 4px 10px; border-radius: 30px; }
+        .stock-buttons { display: flex; gap: 6px; }
+        .stock-btn { width: 38px; height: 38px; border-radius: 20px; border: 1px solid #e2e8f0; background: white; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.1s; }
+        .stock-btn:active { background: #e2e8f0; transform: scale(0.95); }
+        .delete-btn { background: #fee2e2; color: #dc2626; border: none; }
+        
+        /* Pagination & Load More */
+        .load-more { text-align: center; padding: 12px; background: #e2e8f0; border-radius: 40px; margin: 10px 0; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .load-more:active { background: #cbd5e1; }
+        .info-stats { background: #e2e8f0; border-radius: 30px; padding: 8px 15px; margin-bottom: 15px; font-size: 0.8rem; display: flex; justify-content: space-between; }
+        
+        /* Bottom Navigation */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: white; border-top: 1px solid #e2e8f0; padding: 8px 0 12px; }
+        .nav-item { flex: 1; text-align: center; padding: 8px; cursor: pointer; color: #94a3b8; font-weight: bold; font-size: 0.7rem; transition: all 0.2s; }
+        .nav-item.active { color: #2563eb; background: #eff6ff; }
+        .nav-item span { font-size: 1.5rem; display: block; margin-bottom: 3px; }
+        
+        /* Modal Zoom */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-img { max-width: 90%; max-height: 80%; border-radius: 12px; }
+        .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 2rem; cursor: pointer; background: rgba(255,255,255,0.2); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        
+        /* Toast */
+        .toast { position: fixed; bottom: 80px; left: 20px; right: 20px; background: #1e293b; color: white; padding: 12px; border-radius: 40px; text-align: center; z-index: 1000; font-size: 0.85rem; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Install Button */
+        .install-banner { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 12px 16px; border-radius: 16px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .install-banner span { font-size: 0.9rem; }
+        .install-banner button { background: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: bold; color: #2563eb; cursor: pointer; }
+        
+        /* Progress Bar */
+        .progress-bar { width: 100%; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { width: 0%; height: 100%; background: #2563eb; transition: width 0.3s; }
+        
+        .hidden { display: none !important; }
+        textarea.form-input { resize: vertical; font-family: monospace; }
+        small { color: #64748b; }
+        .search-box { margin-bottom: 15px; }
+        
+        /* Stok badge */
+        .stok-badge { display: inline-block; padding: 2px 8px; border-radius: 30px; font-size: 0.7rem; font-weight: bold; margin-left: 5px; }
+        .stok-habis { background: #fee2e2; color: #dc2626; }
+        .stok-sedikit { background: #dbeafe; color: #2563eb; }
+        .stok-banyak { background: #dcfce7; color: #16a34a; }
+        
+        /* Empty state */
+        .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; }
+        .empty-state span { font-size: 3rem; display: block; margin-bottom: 15px; }
+        
+        /* Storage Info */
+        .storage-info { background: #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 0.7rem; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>🏍️ Striping Pro</h2>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <span id="syncStatus" class="sync-status" onclick="manualSync()">💾 Online</span>
+        <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    </div>
+</div>
+
+<div id="installBanner" class="install-banner hidden">
+    <span>📱 Install Aplikasi untuk Akses Lebih Cepat!</span>
+    <button id="installBtn">Install</button>
+</div>
+
+<div id="menuDropdown" class="menu-dropdown">
+    <div class="menu-item" onclick="exportBackup()">💾 Backup ke File</div>
+    <div class="menu-item" onclick="showRestoreModal()">📂 Restore dari File</div>
+    <div class="menu-item" onclick="manualSync()">🔄 Sinkronisasi Manual</div>
+    <div class="menu-item" onclick="exportToCSV()">📊 Export ke CSV</div>
+    <div class="menu-item" onclick="showStorageInfo()">💿 Info Penyimpanan</div>
+    <div class="menu-item danger" onclick="clearAllData()">⚠️ Hapus Semua Data</div>
+</div>
+
+<div id="tabs" class="tabs"></div>
+
+<div class="main-content">
+    <!-- LAYAR TAMBAH PRODUK -->
+    <div id="screenAdd">
+        <div class="card">
+            <h3 style="margin-bottom: 15px;">➕ Tambah Produk</h3>
+            <input type="hidden" id="editId">
+            
+            <label class="form-label">🏍️ MEREK MOTOR</label>
+            <select id="kategori" class="form-input">
+                <option value="HONDA">HONDA</option>
+                <option value="YAMAHA">YAMAHA</option>
+                <option value="SUZUKI">SUZUKI</option>
+                <option value="KAWASAKI">KAWASAKI</option>
+            </select>
+            
+            <label class="form-label">📛 NAMA PRODUK</label>
+            <input type="text" id="nama" class="form-input" placeholder="Contoh: Stiker Scoopy Racing" autocomplete="off">
+            
+            <!-- Pilihan sumber gambar -->
+            <div class="image-source-tabs">
+                <div class="source-tab active" onclick="setImageSource('url')">🔗 Link URL</div>
+                <div class="source-tab" onclick="setImageSource('camera')">📸 Kamera/Galeri</div>
+            </div>
+            
+            <!-- Input URL -->
+            <div id="urlInputSection">
+                <label class="form-label">🖼️ LINK FOTO (GitHub/Imgur/PostImage)</label>
+                <input type="text" id="fotoUrl" class="form-input" placeholder="https://raw.githubusercontent.com/.../foto.jpg" autocomplete="off">
+                <small>📌 Rekomendasi: Upload foto ke Imgur/GitHub → copy link</small>
+            </div>
+            
+            <!-- Upload Camera/Gallery -->
+            <div id="cameraInputSection" class="hidden">
+                <label class="form-label">📸 AMBIL FOTO DARI HP</label>
+                
+                <!-- Tombol Kamera dan Galeri terpisah -->
+                <div class="photo-buttons">
+                    <button class="photo-btn camera-btn" onclick="openCamera()">
+                        <span>📷</span> Kamera
+                    </button>
+                    <button class="photo-btn gallery-btn" onclick="openGallery()">
+                        <span>🖼️</span> Galeri
+                    </button>
+                </div>
+                
+                <!-- Hidden file inputs -->
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(this)">
+                <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+                
+                <div id="previewContainer" class="hidden">
+                    <img id="previewImage" class="preview-img">
+                    <button class="btn-primary" style="background:#64748b; margin-top:5px;" onclick="clearPreview()">🗑️ Hapus Foto</button>
+                </div>
+            </div>
+            
+            <div class="progress-bar hidden" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <button class="btn-primary" onclick="simpanProduk()">💾 SIMPAN PRODUK</button>
+            <button id="btnBatal" class="btn-primary btn-cancel hidden" onclick="batalEdit()">BATAL EDIT</button>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 10px;">📤 Input Massal (1000+ Produk)</h3>
+            <small>Format per baris: <b>KATEGORI|Nama Produk|Link Foto</b></small>
+            <textarea id="massInput" rows="4" class="form-input" style="margin-top: 10px;" placeholder="HONDA|Stiker Scoopy 2024|https://link.foto&#10;YAMAHA|Stiker NMAX Carbon|https://link.foto&#10;SUZUKI|Stiker Satria FU|https://link.foto"></textarea>
+            <button class="btn-primary btn-success" onclick="inputMassal()">📥 IMPORT MASSAL</button>
+        </div>
+        
+        <div class="storage-info" id="storageInfo">
+            <span>💾 Estimasi penyimpanan</span>
+            <span id="storageEstimate">Menghitung...</span>
+        </div>
+    </div>
+
+    <!-- LAYAR LIST PRODUK -->
+    <div id="screenList" class="hidden">
+        <input type="text" id="search" class="form-input search-box" placeholder="🔍 Cari produk..." oninput="cariProduk()" autocomplete="off">
+        <div id="infoStats" class="info-stats">
+            <span id="totalProduk">0 produk</span>
+            <span id="tampilProduk">Menampilkan 0</span>
+        </div>
+        <div id="listContainer"></div>
+        <div id="loadMoreBtn" class="load-more hidden" onclick="loadMore()">📥 Load More Produk...</div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="gantiLayar('add')"><span>➕</span>TAMBAH</div>
+    <div class="nav-item" onclick="gantiLayar('list')"><span>📦</span>STOK</div>
+</div>
+
+<!-- MODAL ZOOM -->
+<div id="zoomModal" class="modal" onclick="closeZoom()">
+    <div class="modal-close" onclick="event.stopPropagation(); closeZoom()">✕</div>
+    <img id="zoomImg" class="modal-img">
+</div>
+
+<div id="modalRestore" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:25px; border-radius:30px; width:300px; text-align:center;">
+        <h3>📂 Restore Data</h3>
+        <input type="file" id="restoreFile" accept=".json,.sqlite" style="margin:15px 0; width:100%;">
+        <button class="btn-primary" onclick="restoreFromFile()" style="margin-top:5px;">RESTORE</button>
+        <button onclick="closeRestoreModal()" style="margin-top:10px; background:none; border:none; color:#64748b; padding:10px;">Batal</button>
+    </div>
+</div>
+
+<script>
+    // ==================== INDEXEDDB SETUP ====================
+    const DB_NAME = 'StokStripDB';
+    const DB_VERSION = 4;
+    const STORE_NAME = 'produk';
+    
+    let dbData = [];
+    let filteredData = [];
+    let currentCategory = "HONDA";
+    let currentPage = 0;
+    const ITEMS_PER_PAGE = 30;
+    let currentZoomImages = [];
+    let currentZoomIndex = 0;
+    let deferredPrompt = null;
+    let currentImageSource = 'url';
+    let pendingImageData = null;
+    
+    // Kompresi gambar
+    async function compressImage(file, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressedBase64);
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    // Buka Kamera
+    function openCamera() {
+        document.getElementById('cameraInput').click();
+    }
+    
+    // Buka Galeri
+    function openGallery() {
+        document.getElementById('galleryInput').click();
+    }
+    
+    // Handle upload gambar
+    async function handleImageUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        if (file.size > 5 * 1024 * 1024) {
+            showToast("❌ Ukuran foto maksimal 5MB");
+            input.value = '';
+            return;
+        }
+        
+        showToast("📤 Mengompres foto...");
+        
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        progressBar.classList.remove('hidden');
+        progressFill.style.width = '50%';
+        
+        try {
+            const compressedBase64 = await compressImage(file, 800, 0.7);
+            progressFill.style.width = '100%';
+            pendingImageData = compressedBase64;
+            
+            // Tampilkan preview
+            const previewContainer = document.getElementById('previewContainer');
+            const previewImage = document.getElementById('previewImage');
+            previewImage.src = compressedBase64;
+            previewContainer.classList.remove('hidden');
+            
+            setTimeout(() => {
+                progressBar.classList.add('hidden');
+                progressFill.style.width = '0%';
+            }, 500);
+            
+            showToast("✅ Foto siap disimpan!");
+            
+            // Clear input
+            input.value = '';
+        } catch (err) {
+            console.error(err);
+            showToast("❌ Gagal memproses foto");
+            progressBar.classList.add('hidden');
+            input.value = '';
+        }
+    }
+    
+    function clearPreview() {
+        pendingImageData = null;
+        document.getElementById('previewContainer').classList.add('hidden');
+        document.getElementById('previewImage').src = '';
+        showToast("🗑️ Foto dihapus");
+    }
+    
+    function setImageSource(source) {
+        currentImageSource = source;
+        const urlSection = document.getElementById('urlInputSection');
+        const cameraSection = document.getElementById('cameraInputSection');
+        const tabs = document.querySelectorAll('.source-tab');
+        
+        tabs.forEach(tab => tab.classList.remove('active'));
+        
+        if (source === 'url') {
+            urlSection.classList.remove('hidden');
+            cameraSection.classList.add('hidden');
+            tabs[0].classList.add('active');
+        } else {
+            urlSection.classList.add('hidden');
+            cameraSection.classList.remove('hidden');
+            tabs[1].classList.add('active');
+        }
+    }
+    
+    // IndexedDB functions
+    function openIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    store.createIndex('kategori', 'kategori', { unique: false });
+                    store.createIndex('nama', 'nama', { unique: false });
+                }
+            };
+        });
+    }
+    
+    async function simpanKeIndexedDB(produkArray) {
+        try {
+            const db = await openIndexedDB();
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            await new Promise((resolve, reject) => {
+                const request = store.clear();
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+            
+            const batchSize = 500;
+            for (let i = 0; i < produkArray.length; i += batchSize) {
+                const batch = produkArray.slice(i, i + batchSize);
+                for (const item of batch) {
+                    store.put(item);
+                }
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            
+            return new Promise((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+        } catch(e) {
+            console.error("Simpan ke IndexedDB error:", e);
+            throw e;
+        }
+    }
+    
+    async function loadDariIndexedDB() {
+        try {
+            const db = await openIndexedDB();
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result || []);
+                request.onerror = () => reject(request.error);
+            });
+        } catch(e) {
+            console.error("Load error:", e);
+            return [];
+        }
+    }
+    
+    async function initData() {
+        showToast("📂 Membuka database...");
+        const data = await loadDariIndexedDB();
+        if (data && data.length > 0) {
+            dbData = data;
+            showToast(`✅ Load ${dbData.length} produk`);
+        } else {
+            dbData = [
+                { id: Date.now(), nama: "Stiker Scoopy Racing", kategori: "HONDA", foto: "https://via.placeholder.com/200?text=Scoopy", stok: 0 },
+                { id: Date.now()+1, nama: "Stiker NMAX Carbon", kategori: "YAMAHA", foto: "https://via.placeholder.com/200?text=NMAX", stok: 1 },
+                { id: Date.now()+2, nama: "Stiker Satria FU", kategori: "SUZUKI", foto: "https://via.placeholder.com/200?text=Satria", stok: 10 },
+                { id: Date.now()+3, nama: "Stiker Ninja RR", kategori: "KAWASAKI", foto: "https://via.placeholder.com/200?text=Ninja", stok: 3 }
+            ];
+            await simpanKeIndexedDB(dbData);
+            showToast("📦 Data sample dibuat");
+        }
+        filterData();
+        renderTabs();
+        updateStats();
+        updateOnlineStatus();
+        updateStorageInfo();
+    }
+    
+    async function simpanDanSync() {
+        await simpanKeIndexedDB(dbData);
+        updateStats();
+        updateStorageInfo();
+        if (!document.getElementById('screenList').classList.contains('hidden')) {
+            filterData();
+        }
+        showToast("💾 Data tersimpan");
+    }
+    
+    async function updateStorageInfo() {
+        if ('storage' in navigator && 'estimate' in navigator.storage) {
+            const estimate = await navigator.storage.estimate();
+            const usedMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+            const quotaMB = (estimate.quota / (1024 * 1024)).toFixed(0);
+            document.getElementById('storageEstimate').innerHTML = `${usedMB} MB / ${quotaMB} MB`;
+        } else {
+            const totalBase64 = dbData.reduce((sum, p) => sum + ((p.foto && p.foto.startsWith('data:image')) ? p.foto.length : 0), 0);
+            const totalKB = (totalBase64 / 1024).toFixed(0);
+            document.getElementById('storageEstimate').innerHTML = `~${totalKB} KB (foto)`;
+        }
+    }
+    
+    function showStorageInfo() {
+        updateStorageInfo();
+        showToast("💿 Info penyimpanan diperbarui");
+        toggleMenu();
+    }
+    
+    function updateOnlineStatus() {
+        const statusEl = document.getElementById('syncStatus');
+        if (navigator.onLine) {
+            statusEl.innerHTML = '✅ Online';
+            statusEl.classList.remove('offline');
+        } else {
+            statusEl.innerHTML = '📴 Offline';
+            statusEl.classList.add('offline');
+        }
+    }
+    
+    function getStockColorClass(stok) {
+        if (stok === 0) return 'product-name-stok0';
+        if (stok === 1) return 'product-name-stok1';
+        return 'product-name-stok2plus';
+    }
+    
+    function getStockBadge(stok) {
+        if (stok === 0) return '<span class="stok-badge stok-habis">⚠️ HABIS</span>';
+        if (stok === 1) return '<span class="stok-badge stok-sedikit">⚠️ SISA 1</span>';
+        if (stok <= 5) return '<span class="stok-badge stok-sedikit">📦 SISA ' + stok + '</span>';
+        return '<span class="stok-badge stok-banyak">✅ STOK AMAN</span>';
+    }
+    
+    function filterData() {
+        const keyword = document.getElementById('search')?.value.toLowerCase() || "";
+        filteredData = dbData.filter(p => 
+            p.kategori === currentCategory && 
+            p.nama.toLowerCase().includes(keyword)
+        );
+        filteredData.sort((a, b) => {
+            const stokA = a.stok || 0;
+            const stokB = b.stok || 0;
+            if (stokA === 0 && stokB !== 0) return -1;
+            if (stokA !== 0 && stokB === 0) return 1;
+            if (stokA === 1 && stokB !== 1 && stokB !== 0) return -1;
+            if (stokA !== 1 && stokB === 1 && stokA !== 0) return 1;
+            return a.nama.localeCompare(b.nama);
+        });
+        currentPage = 0;
+        renderList();
+        updateStats();
+    }
+    
+    function renderList() {
+        const start = currentPage * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const pageItems = filteredData.slice(start, end);
+        const container = document.getElementById('listContainer');
+        
+        if (pageItems.length === 0) {
+            container.innerHTML = '<div class="empty-state"><span>📭</span><p>Tidak ada produk</p></div>';
+        } else {
+            container.innerHTML = pageItems.map((item, idx) => {
+                const globalIdx = filteredData.findIndex(p => p.id === item.id);
+                const stock = item.stok || 0;
+                const nameColorClass = getStockColorClass(stock);
+                const stockBadge = getStockBadge(stock);
+                const fotoSrc = item.foto || 'https://via.placeholder.com/65';
+                
+                return `
+                <div class="product-item">
+                    <img class="product-img" src="${fotoSrc}" onclick="openZoom(${globalIdx})" onerror="this.src='https://via.placeholder.com/65'">
+                    <div class="product-info">
+                        <div class="${nameColorClass}">${escapeHtml(item.nama)} ${stockBadge}</div>
+                        <div class="product-stok">📦 Stok: <b>${stock}</b></div>
+                        <div class="edit-btn" onclick="editProduk(${item.id})">✏️ EDIT</div>
+                    </div>
+                    <div class="stock-buttons">
+                        <button class="stock-btn" onclick="ubahStok(${item.id}, -1)">−</button>
+                        <button class="stock-btn" onclick="ubahStok(${item.id}, 1)">+</button>
+                        <button class="stock-btn delete-btn" onclick="hapusProduk(${item.id})">🗑️</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        const loadBtn = document.getElementById('loadMoreBtn');
+        if (filteredData.length > end) {
+            loadBtn.classList.remove('hidden');
+        } else {
+            loadBtn.classList.add('hidden');
+        }
+        
+        document.getElementById('tampilProduk').innerHTML = `Menampilkan ${Math.min(filteredData.length, end)} dari ${filteredData.length}`;
+    }
+    
+    function loadMore() {
+        currentPage++;
+        renderList();
+    }
+    
+    function updateStats() {
+        document.getElementById('totalProduk').innerHTML = `${dbData.length} produk total`;
+    }
+    
+    function cariProduk() {
+        currentPage = 0;
+        filterData();
+    }
+    
+    async function ubahStok(id, delta) {
+        const idx = dbData.findIndex(p => p.id == id);
+        if (idx !== -1) {
+            const newStok = Math.max(0, (dbData[idx].stok || 0) + delta);
+            dbData[idx].stok = newStok;
+            await simpanDanSync();
+            filterData();
+            
+            let warna = newStok === 0 ? "🔴 HABIS" : (newStok === 1 ? "🔵 SISA 1" : "⚫ AMAN");
+            showToast(`📦 Stok ${dbData[idx].nama}: ${newStok} → ${warna}`);
+        }
+    }
+    
+    async function simpanProduk() {
+        const id = document.getElementById('editId').value;
+        const nama = document.getElementById('nama').value.trim();
+        const kategori = document.getElementById('kategori').value;
+        let foto = '';
+        
+        if (!nama) return showToast("Nama produk wajib diisi!");
+        
+        if (currentImageSource === 'url') {
+            foto = document.getElementById('fotoUrl').value.trim();
+            if (!foto) foto = "https://via.placeholder.com/200";
+        } else {
+            if (pendingImageData) {
+                foto = pendingImageData;
+            } else {
+                foto = "https://via.placeholder.com/200";
+            }
+        }
+        
+        if (id) {
+            const idx = dbData.findIndex(p => p.id == id);
+            if (idx !== -1) {
+                dbData[idx] = { ...dbData[idx], nama, kategori, foto };
+            }
+        } else {
+            dbData.push({ id: Date.now(), nama, kategori, foto, stok: 0 });
+        }
+        
+        clearPreview();
+        pendingImageData = null;
+        
+        await simpanDanSync();
+        resetForm();
+        gantiLayar('list');
+        showToast("✅ Produk tersimpan!");
+    }
+    
+    function editProduk(id) {
+        const p = dbData.find(x => x.id == id);
+        if (!p) return;
+        document.getElementById('editId').value = p.id;
+        document.getElementById('nama').value = p.nama;
+        document.getElementById('kategori').value = p.kategori;
+        
+        if (p.foto && p.foto.startsWith('data:image')) {
+            setImageSource('camera');
+            pendingImageData = p.foto;
+            document.getElementById('previewImage').src = p.foto;
+            document.getElementById('previewContainer').classList.remove('hidden');
+        } else {
+            setImageSource('url');
+            document.getElementById('fotoUrl').value = p.foto || '';
+        }
+        
+        document.getElementById('btnBatal').classList.remove('hidden');
+        gantiLayar('add');
+    }
+    
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('nama').value = '';
+        document.getElementById('fotoUrl').value = '';
+        clearPreview();
+        pendingImageData = null;
+        setImageSource('url');
+        document.getElementById('btnBatal').classList.add('hidden');
+    }
+    
+    function batalEdit() {
+        resetForm();
+        gantiLayar('list');
+    }
+    
+    async function hapusProduk(id) {
+        if (confirm("Hapus produk ini?")) {
+            dbData = dbData.filter(p => p.id !== id);
+            await simpanDanSync();
+            filterData();
+            showToast("🗑️ Produk dihapus");
+        }
+    }
+    
+    async function inputMassal() {
+        const text = document.getElementById('massInput').value;
+        const lines = text.split('\n');
+        let added = 0;
+        
+        for (let line of lines) {
+            line = line.trim();
+            if (line === "") continue;
+            const parts = line.split('|');
+            if (parts.length >= 2) {
+                let kategori = parts[0].trim().toUpperCase();
+                const nama = parts[1].trim();
+                let foto = parts[2] ? parts[2].trim() : "https://via.placeholder.com/200";
+                if (!["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI"].includes(kategori)) kategori = "HONDA";
+                if (nama) {
+                    dbData.push({ id: Date.now() + added, nama, kategori, foto, stok: 0 });
+                    added++;
+                }
+            }
+        }
+        
+        if (added > 0) {
+            await simpanDanSync();
+            showToast(`✅ Berhasil tambah ${added} produk!`);
+            document.getElementById('massInput').value = '';
+            filterData();
+            gantiLayar('list');
+        } else {
+            showToast("❌ Format salah. Gunakan: KATEGORI|Nama Produk|LinkFoto");
+        }
+    }
+    
+    async function clearAllData() {
+        if (confirm("⚠️ PERINGATAN! Hapus SEMUA data?")) {
+            dbData = [];
+            await simpanKeIndexedDB(dbData);
+            filterData();
+            showToast("🗑️ Semua data dihapus");
+        }
+        toggleMenu();
+    }
+    
+    async function exportToCSV() {
+        let csvContent = "ID,Nama Produk,Kategori,Stok\n";
+        for (const item of dbData) {
+            csvContent += `"${item.id}","${escapeCsv(item.nama)}","${item.kategori}","${item.stok || 0}"\n`;
+        }
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `stok_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toggleMenu();
+        showToast("📊 CSV diexport");
+    }
+    
+    function escapeCsv(str) {
+        return String(str).replace(/"/g, '""');
+    }
+    
+    function openZoom(index) {
+        if (index >= 0 && index < filteredData.length) {
+            const product = filteredData[index];
+            document.getElementById('zoomImg').src = product.foto || "https://via.placeholder.com/200";
+            document.getElementById('zoomModal').style.display = 'flex';
+        }
+    }
+    
+    function closeZoom() {
+        document.getElementById('zoomModal').style.display = 'none';
+    }
+    
+    async function exportBackup() {
+        const data = JSON.stringify({ app: "StokStripPro", version: 4, payload: dbData });
+        const blob = new Blob([data], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toggleMenu();
+        showToast("💾 Backup berhasil");
+    }
+    
+    function showRestoreModal() {
+        document.getElementById('modalRestore').style.display = 'flex';
+        toggleMenu();
+    }
+    
+    function closeRestoreModal() {
+        document.getElementById('modalRestore').style.display = 'none';
+    }
+    
+    async function restoreFromFile() {
+        const file = document.getElementById('restoreFile').files[0];
+        if (!file) return showToast("Pilih file");
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                if (json.app === "StokStripPro" && Array.isArray(json.payload)) {
+                    dbData = json.payload;
+                    await simpanKeIndexedDB(dbData);
+                    showToast(`✅ Restore ${dbData.length} produk`);
+                    closeRestoreModal();
+                    filterData();
+                    renderTabs();
+                } else {
+                    showToast("❌ Format tidak dikenali");
+                }
+            } catch(err) {
+                showToast("❌ File korup");
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    async function manualSync() {
+        const statusEl = document.getElementById('syncStatus');
+        statusEl.classList.add('syncing');
+        statusEl.innerHTML = '🔄 Syncing...';
+        await new Promise(resolve => setTimeout(resolve, 800));
+        await simpanKeIndexedDB(dbData);
+        statusEl.classList.remove('syncing');
+        updateOnlineStatus();
+        showToast("✅ Sinkronisasi selesai");
+    }
+    
+    function gantiLayar(layar) {
+        document.getElementById('screenAdd').classList.toggle('hidden', layar !== 'add');
+        document.getElementById('screenList').classList.toggle('hidden', layar !== 'list');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        if (layar === 'add') {
+            document.querySelector('.nav-item:first-child').classList.add('active');
+        } else {
+            document.querySelector('.nav-item:last-child').classList.add('active');
+            filterData();
+        }
+    }
+    
+    function renderTabs() {
+        const cats = ["HONDA", "YAMAHA", "SUZUKI", "KAWASAKI"];
+        const container = document.getElementById('tabs');
+        container.innerHTML = cats.map(c => {
+            const count = dbData.filter(p => p.kategori === c).length;
+            return `<div class="tab ${c === currentCategory ? 'active' : ''}" onclick="currentCategory='${c}';filterData();renderTabs();">${c} <small>(${count})</small></div>`;
+        }).join('');
+    }
+    
+    function showToast(msg) {
+        let t = document.querySelector('.toast');
+        if (t) t.remove();
+        t = document.createElement('div');
+        t.className = 'toast';
+        t.innerHTML = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2000);
+    }
+    
+    function toggleMenu() {
+        document.getElementById('menuDropdown').classList.toggle('show');
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function initPWA() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBanner').classList.remove('hidden');
+        });
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt = null;
+                document.getElementById('installBanner').classList.add('hidden');
+            }
+        });
+    }
+    
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('menuDropdown');
+        const menuBtn = document.querySelector('.menu-btn');
+        if (menu && menu.classList.contains('show') && !menu.contains(e.target) && !menuBtn.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+    
+    window.addEventListener('online', () => { updateOnlineStatus(); showToast('🌐 Online'); });
+    window.addEventListener('offline', () => { updateOnlineStatus(); showToast('📴 Offline'); });
+    
+    initData();
+    initPWA();
+    gantiLayar('add');
+    setImageSource('url');
+</script>
+</body>
+</html>
