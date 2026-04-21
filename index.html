@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <title>Stok Strip Pro - Manajemen Stok & Folder</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f1f5f9; padding-bottom: 70px; }
+        
+        .header { background: #0f172a; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header h2 { font-size: 1.2rem; }
+        .sync-status { background: #10b981; border-radius: 30px; padding: 5px 12px; font-size: 0.7rem; cursor: pointer; }
+        .sync-status.offline { background: #ef4444; }
+        .menu-btn { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.3rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
+        
+        .menu-dropdown { position: absolute; top: 60px; right: 15px; background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 250px; z-index: 200; display: none; }
+        .menu-dropdown.show { display: block; }
+        .menu-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #e2e8f0; }
+        .menu-item.danger { color: #dc2626; }
+        
+        .search-wrapper { padding: 12px 15px 0 15px; background: #f1f5f9; position: sticky; top: 60px; z-index: 50; }
+        .search-box { width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #e2e8f0; background: white; font-size: 0.9rem; margin-bottom: 12px; }
+        
+        .folders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 12px; padding: 0 15px 15px 15px; }
+        .folder-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.1s; cursor: pointer; position: relative; }
+        .folder-card:active { transform: scale(0.98); }
+        .folder-card.long-press-active { background: #e0e7ff; box-shadow: 0 0 0 2px #2563eb; }
+        .folder-cover { height: 110px; background-size: cover; background-position: center; background-color: #e2e8f0; position: relative; display: flex; align-items: flex-end; justify-content: flex-end; padding: 6px; }
+        .folder-badge { background: rgba(0,0,0,0.6); color: white; border-radius: 20px; padding: 2px 8px; font-size: 0.7rem; font-weight: bold; }
+        .folder-info { padding: 10px; }
+        .folder-name { font-weight: bold; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+        .folder-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+        .folder-action-btn { background: none; border: none; font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; cursor: pointer; }
+        .folder-action-btn.edit { color: #2563eb; }
+        .folder-action-btn.rename { color: #f59e0b; }
+        .folder-action-btn.delete { color: #dc2626; }
+        .add-folder-btn-fixed { background: #2563eb; color: white; border: none; border-radius: 30px; padding: 10px 16px; font-weight: bold; margin: 0 15px 15px auto; display: block; cursor: pointer; }
+        
+        .main-content { padding: 15px; max-width: 600px; margin: 0 auto; }
+        .card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .form-label { font-weight: bold; font-size: 0.75rem; color: #475569; margin-bottom: 5px; display: block; }
+        .form-input { width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid #e2e8f0; margin-bottom: 15px; font-size: 0.9rem; }
+        .btn-primary { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 40px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-cancel { background: #64748b; }
+        
+        .image-section { border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; margin-bottom: 15px; }
+        .image-section-title { font-weight: bold; font-size: 0.8rem; margin-bottom: 10px; color: #475569; }
+        .photo-buttons { display: flex; gap: 12px; margin-bottom: 10px; }
+        .photo-btn { flex: 1; padding: 10px; border-radius: 40px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .camera-btn { background: #2563eb; color: white; }
+        .gallery-btn { background: #10b981; color: white; }
+        .preview-img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 12px; margin-top: 8px; }
+        .remove-photo { background: #dc2626; color: white; border: none; border-radius: 20px; padding: 4px 12px; margin-top: 5px; cursor: pointer; font-size: 0.7rem; }
+        
+        .product-item { background: white; border-radius: 16px; padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; border: 1px solid #e2e8f0; }
+        .product-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #e2e8f0; cursor: pointer; }
+        .product-images-preview { display: flex; gap: 4px; margin-top: 4px; }
+        .product-img-small { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; cursor: pointer; }
+        .product-info { flex: 1; }
+        .product-name-stok0 { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; color: #dc2626; }
+        .product-name-stok1_3 { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; color: #2563eb; }
+        .product-name-stok4plus { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; color: #1e293b; }
+        .product-stok { font-size: 0.8rem; color: #475569; }
+        .stock-buttons { display: flex; gap: 6px; }
+        .stock-btn { width: 38px; height: 38px; border-radius: 20px; border: 1px solid #e2e8f0; background: white; font-size: 1.2rem; cursor: pointer; }
+        .delete-btn { background: #fee2e2; color: #dc2626; border: none; }
+        .edit-btn { color: #2563eb; font-size: 0.7rem; margin-top: 5px; display: inline-block; cursor: pointer; background: #eff6ff; padding: 4px 10px; border-radius: 30px; }
+        .stok-badge { display: inline-block; padding: 2px 8px; border-radius: 30px; font-size: 0.7rem; font-weight: bold; margin-left: 5px; }
+        .stok-habis { background: #fee2e2; color: #dc2626; }
+        .stok-sedikit { background: #dbeafe; color: #2563eb; }
+        .stok-aman { background: #dcfce7; color: #16a34a; }
+        
+        .info-stats { background: #e2e8f0; border-radius: 30px; padding: 8px 15px; margin-bottom: 15px; font-size: 0.8rem; display: flex; justify-content: space-between; }
+        .load-more { text-align: center; padding: 12px; background: #e2e8f0; border-radius: 40px; margin: 10px 0; cursor: pointer; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: white; border-top: 1px solid #e2e8f0; padding: 8px 0 12px; }
+        .nav-item { flex: 1; text-align: center; padding: 8px; cursor: pointer; color: #94a3b8; font-weight: bold; font-size: 0.7rem; }
+        .nav-item.active { color: #2563eb; background: #eff6ff; }
+        .nav-item span { font-size: 1.5rem; display: block; margin-bottom: 3px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; flex-direction: column; }
+        .modal-img { max-width: 90%; max-height: 70%; border-radius: 12px; object-fit: contain; }
+        .modal-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 2rem; cursor: pointer; background: rgba(0,0,0,0.5); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .modal-nav { display: flex; gap: 30px; margin-top: 20px; }
+        .modal-nav-btn { background: rgba(255,255,255,0.3); color: white; border: none; padding: 10px 20px; border-radius: 40px; font-size: 1rem; cursor: pointer; }
+        .modal-counter { color: white; margin-top: 10px; font-size: 0.8rem; }
+        .toast { position: fixed; bottom: 80px; left: 20px; right: 20px; background: #1e293b; color: white; padding: 12px; border-radius: 40px; text-align: center; z-index: 1000; font-size: 0.85rem; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
+        .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; }
+        
+        .modal-folder { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 300; align-items: center; justify-content: center; }
+        .modal-folder-content { background: white; border-radius: 32px; width: 90%; max-width: 350px; padding: 24px; text-align: center; }
+        .modal-folder-content select { width: 100%; padding: 12px; border-radius: 40px; border: 1px solid #cbd5e1; margin: 15px 0; }
+        
+        .long-press-hint { position: fixed; bottom: 100px; left: 20px; right: 20px; background: #1e293b; color: white; padding: 8px; border-radius: 30px; text-align: center; font-size: 0.7rem; z-index: 150; opacity: 0.7; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>🏍️ Striping Pro</h2>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <span id="syncStatus" class="sync-status" onclick="manualSync()">💾 Online</span>
+        <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    </div>
+</div>
+
+<div id="menuDropdown" class="menu-dropdown">
+    <div class="menu-item" onclick="exportBackup()">💾 Backup ke File</div>
+    <div class="menu-item" onclick="showRestoreModal()">📂 Restore dari File</div>
+    <div class="menu-item" onclick="exportToCSV()">📊 Export ke CSV</div>
+    <div class="menu-item" onclick="clearAllData()">⚠️ Hapus Semua Data</div>
+</div>
+
+<!-- LAYAR FOLDER -->
+<div id="screenFolders">
+    <div class="search-wrapper">
+        <input type="text" id="searchFolder" class="search-box" placeholder="🔍 Cari folder..." oninput="renderFoldersGrid()">
+    </div>
+    <div id="foldersGridContainer" class="folders-grid"></div>
+    <button class="add-folder-btn-fixed" onclick="showAddFolderModal()">+ Tambah Folder</button>
+</div>
+
+<!-- LAYAR PRODUK -->
+<div id="screenProducts" class="hidden">
+    <div class="search-wrapper">
+        <input type="text" id="searchProduct" class="search-box" placeholder="🔍 Cari produk..." oninput="filterProducts()">
+    </div>
+    <div class="main-content" style="padding-top:0">
+        <div class="card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center">
+            <div><span id="currentFolderName">Folder</span> <span id="folderProductCount"></span></div>
+            <div>
+                <button class="btn-primary" style="width:auto; padding:8px 16px; margin:0" onclick="backToFolders()">◀ Kembali</button>
+                <button class="btn-primary" style="width:auto; padding:8px 16px; margin-left:8px; background:#10b981" onclick="showAddProduct()">+ Produk</button>
+            </div>
+        </div>
+        <div id="infoStats" class="info-stats">
+            <span id="totalProduk">0 produk</span>
+            <span id="tampilProduk">Menampilkan 0</span>
+        </div>
+        <div id="listContainer"></div>
+        <div id="loadMoreBtn" class="load-more hidden" onclick="loadMore()">📥 Load More...</div>
+    </div>
+</div>
+
+<!-- LAYAR TAMBAH/EDIT PRODUK dengan 2 FOTO -->
+<div id="screenAddEdit" class="hidden">
+    <div class="main-content">
+        <div class="card">
+            <h3 id="formTitle">➕ Tambah Produk</h3>
+            <input type="hidden" id="editId">
+            <label class="form-label">📁 FOLDER</label>
+            <select id="kategoriSelect" class="form-input"></select>
+            <label class="form-label">📛 NAMA PRODUK</label>
+            <input type="text" id="nama" class="form-input" placeholder="Contoh: Stiker Racing">
+            
+            <!-- FOTO 1 (Utama) -->
+            <div class="image-section">
+                <div class="image-section-title">📸 FOTO UTAMA *</div>
+                <div class="photo-buttons">
+                    <button type="button" class="photo-btn camera-btn" onclick="openCamera(1)"><span>📷</span> Kamera</button>
+                    <button type="button" class="photo-btn gallery-btn" onclick="openGallery(1)"><span>🖼️</span> Galeri</button>
+                </div>
+                <input type="file" id="cameraInput1" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(this, 1)">
+                <input type="file" id="galleryInput1" accept="image/*" style="display:none" onchange="handleImageUpload(this, 1)">
+                <div id="previewContainer1" class="hidden">
+                    <img id="previewImage1" class="preview-img">
+                    <button type="button" class="remove-photo" onclick="clearPreview(1)">Hapus Foto 1</button>
+                </div>
+                <input type="text" id="foto1Url" class="form-input" style="margin-top:8px" placeholder="Atau masukkan URL foto utama">
+            </div>
+            
+            <!-- FOTO 2 (Opsional) -->
+            <div class="image-section">
+                <div class="image-section-title">📸 FOTO KEDUA (Opsional)</div>
+                <div class="photo-buttons">
+                    <button type="button" class="photo-btn camera-btn" onclick="openCamera(2)"><span>📷</span> Kamera</button>
+                    <button type="button" class="photo-btn gallery-btn" onclick="openGallery(2)"><span>🖼️</span> Galeri</button>
+                </div>
+                <input type="file" id="cameraInput2" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(this, 2)">
+                <input type="file" id="galleryInput2" accept="image/*" style="display:none" onchange="handleImageUpload(this, 2)">
+                <div id="previewContainer2" class="hidden">
+                    <img id="previewImage2" class="preview-img">
+                    <button type="button" class="remove-photo" onclick="clearPreview(2)">Hapus Foto 2</button>
+                </div>
+                <input type="text" id="foto2Url" class="form-input" style="margin-top:8px" placeholder="Atau masukkan URL foto kedua">
+            </div>
+            
+            <button class="btn-primary" onclick="simpanProduk()">💾 SIMPAN</button>
+            <button class="btn-primary btn-cancel" onclick="backToProducts()">BATAL</button>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="showScreen('folders')"><span>📁</span>FOLDER</div>
+    <div class="nav-item" onclick="showAddProduct()"><span>➕</span>TAMBAH</div>
+</div>
+
+<div class="long-press-hint" id="longPressHint">✨ Tekan lama folder untuk memindahkan ke folder lain</div>
+
+<!-- MODAL ZOOM dengan geser -->
+<div id="zoomModal" class="modal" onclick="closeZoom()">
+    <div class="modal-close" onclick="event.stopPropagation(); closeZoom()">✕</div>
+    <img id="zoomImg" class="modal-img" onclick="event.stopPropagation()">
+    <div class="modal-nav">
+        <button class="modal-nav-btn" onclick="event.stopPropagation(); prevImage()">◀ Sebelumnya</button>
+        <button class="modal-nav-btn" onclick="event.stopPropagation(); nextImage()">Berikutnya ▶</button>
+    </div>
+    <div class="modal-counter" id="imageCounter"></div>
+</div>
+
+<div id="modalRestore" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center;"><div style="background:white; padding:25px; border-radius:30px; width:300px; text-align:center;"><h3>Restore</h3><input type="file" id="restoreFile" accept=".json"><button class="btn-primary" onclick="restoreFromFile()">RESTORE</button><button onclick="closeRestoreModal()">Batal</button></div></div>
+
+<!-- Modal Pindah Folder (Long Press) -->
+<div id="moveFolderModal" class="modal-folder">
+    <div class="modal-folder-content">
+        <h3>📂 Pindahkan Folder</h3>
+        <p id="moveSourceText"></p>
+        <select id="targetFolderSelect" class="form-input"></select>
+        <button class="btn-primary" onclick="executeMoveFolder()">Pindahkan</button>
+        <button class="btn-cancel btn-primary" onclick="closeMoveFolderModal()">Batal</button>
+    </div>
+</div>
+
+<!-- Modal Tambah/Edit Folder -->
+<div id="addFolderModal" class="modal-folder">
+    <div class="modal-folder-content">
+        <h3 id="folderModalTitle">Tambah Folder</h3>
+        <input type="text" id="newFolderName" class="form-input" placeholder="Nama folder">
+        <button class="btn-primary" onclick="saveFolder()">Simpan</button>
+        <button class="btn-cancel btn-primary" onclick="closeAddFolderModal()">Batal</button>
+    </div>
+</div>
+
+<script>
+    // ==================== DATA ====================
+    let dbData = [];
+    let folders = [];
+    let currentFolderObj = null;
+    let filteredProducts = [];
+    let currentPage = 0;
+    const ITEMS_PER_PAGE = 30;
+    let pendingImage1 = null;
+    let pendingImage2 = null;
+    let longPressTimeout = null;
+    let moveSourceFolder = null;
+    let currentZoomImages = [];
+    let currentZoomIndex = 0;
+    
+    const DB_NAME = 'StokStripDB_v8';
+    const DB_VERSION = 1;
+    
+    function getStockColorClass(stok) {
+        if (stok === 0) return 'product-name-stok0';
+        if (stok >= 1 && stok <= 3) return 'product-name-stok1_3';
+        return 'product-name-stok4plus';
+    }
+    
+    function getStockBadge(stok) {
+        if (stok === 0) return '<span class="stok-badge stok-habis">⚠️ HABIS</span>';
+        if (stok === 1) return '<span class="stok-badge stok-sedikit">⚠️ SISA 1</span>';
+        if (stok === 2) return '<span class="stok-badge stok-sedikit">⚠️ SISA 2</span>';
+        if (stok === 3) return '<span class="stok-badge stok-sedikit">⚠️ SISA 3</span>';
+        return '<span class="stok-badge stok-aman">✅ STOK AMAN</span>';
+    }
+    
+    const sampleProducts = {
+        "BEAT": [
+            { nama: "Stiker Beat Street", stok: 12, foto1: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=200", foto2: "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?w=200" },
+            { nama: "Stiker Beat Pop", stok: 5, foto1: "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?w=200", foto2: null },
+            { nama: "Stiker Beat Carbon", stok: 0, foto1: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200", foto2: null }
+        ],
+        "SUPRA": [
+            { nama: "Stiker Supra GTR", stok: 8, foto1: "https://images.unsplash.com/photo-1591637333184-19aa84b3e01f?w=200", foto2: null },
+            { nama: "Stiker Supra X 125", stok: 3, foto1: "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=200", foto2: null },
+            { nama: "Stiker Supra Racing", stok: 15, foto1: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=200", foto2: null }
+        ],
+        "SCOOPY": [
+            { nama: "Stiker Scoopy Mio", stok: 7, foto1: "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?w=200", foto2: null },
+            { nama: "Stiker Scoopy Modif", stok: 2, foto1: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200", foto2: null },
+            { nama: "Stiker Scoopy Hello Kitty", stok: 1, foto1: "https://images.unsplash.com/photo-1591637333184-19aa84b3e01f?w=200", foto2: null }
+        ]
+    };
+    
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const r = indexedDB.open(DB_NAME, DB_VERSION);
+            r.onerror = () => reject(r.error);
+            r.onsuccess = () => resolve(r.result);
+            r.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if(!db.objectStoreNames.contains('produk')) db.createObjectStore('produk', { keyPath: 'id' });
+                if(!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'name' });
+            };
+        });
+    }
+    
+    async function saveAll() {
+        const db = await openDB();
+        const tx = db.transaction(['produk','folders'], 'readwrite');
+        const produkStore = tx.objectStore('produk');
+        const folderStore = tx.objectStore('folders');
+        await produkStore.clear();
+        for(let p of dbData) await produkStore.put(p);
+        await folderStore.clear();
+        for(let f of folders) await folderStore.put(f);
+        return new Promise(r => { tx.oncomplete = r; });
+    }
+    
+    async function loadAll() {
+        const db = await openDB();
+        const produk = await new Promise(r => { db.transaction('produk').objectStore('produk').getAll().onsuccess = e => r(e.target.result || []); });
+        const folderList = await new Promise(r => { db.transaction('folders').objectStore('folders').getAll().onsuccess = e => r(e.target.result || []); });
+        
+        if(folderList.length) folders = folderList;
+        else {
+            folders = [
+                { name:"HONDA", cover:null }, { name:"YAMAHA", cover:null }, 
+                { name:"SUZUKI", cover:null }, { name:"KAWASAKI", cover:null },
+                { name:"BEAT", cover:null }, { name:"SUPRA", cover:null }, { name:"SCOOPY", cover:null }
+            ];
+        }
+        
+        if(produk.length === 0) {
+            let newId = 1;
+            const newProducts = [];
+            for(const [folder, items] of Object.entries(sampleProducts)) {
+                for(const item of items) {
+                    newProducts.push({
+                        id: newId++,
+                        nama: item.nama,
+                        kategori: folder,
+                        foto1: item.foto1,
+                        foto2: item.foto2,
+                        stok: item.stok
+                    });
+                }
+            }
+            return newProducts;
+        }
+        return produk;
+    }
+    
+    async function init() {
+        dbData = await loadAll();
+        renderFoldersGrid();
+        showScreen('folders');
+        updateOnlineStatus();
+        setTimeout(() => {
+            const hint = document.getElementById('longPressHint');
+            if(hint) hint.style.opacity = '0.5';
+        }, 3000);
+    }
+    
+    function renderFoldersGrid() {
+        const container = document.getElementById('foldersGridContainer');
+        const search = document.getElementById('searchFolder')?.value.toLowerCase() || '';
+        let filtered = folders.filter(f => f.name.toLowerCase().includes(search));
+        container.innerHTML = filtered.map(f => {
+            const count = dbData.filter(p => p.kategori === f.name).length;
+            let coverUrl = f.cover;
+            if(!coverUrl) {
+                const firstProduct = dbData.find(p => p.kategori === f.name && p.foto1);
+                coverUrl = firstProduct ? firstProduct.foto1 : 'https://via.placeholder.com/150?text='+f.name;
+            }
+            return `<div class="folder-card" data-folder="${escapeHtml(f.name)}" 
+                        onclick="openFolder('${escapeHtml(f.name)}')"
+                        ontouchstart="handleFolderLongPressStart(event, '${escapeHtml(f.name)}')" 
+                        ontouchend="handleLongPressEnd(event)" 
+                        onmousedown="handleFolderLongPressStart(event, '${escapeHtml(f.name)}')" 
+                        onmouseup="handleLongPressEnd(event)" 
+                        onmouseleave="handleLongPressEnd(event)">
+                        <div class="folder-cover" style="background-image: url('${coverUrl}'); background-size: cover;">
+                            <span class="folder-badge">${count} item</span>
+                        </div>
+                        <div class="folder-info">
+                            <div class="folder-name">📁 ${escapeHtml(f.name)}</div>
+                            <div class="folder-actions">
+                                <button class="folder-action-btn rename" onclick="event.stopPropagation(); renameFolder('${escapeHtml(f.name)}')">✏️ Rename</button>
+                                <button class="folder-action-btn edit" onclick="event.stopPropagation(); editFolderCover('${escapeHtml(f.name)}')">🎨 Cover</button>
+                                <button class="folder-action-btn delete" onclick="event.stopPropagation(); deleteFolder('${escapeHtml(f.name)}')">Hapus</button>
+                            </div>
+                        </div>
+                    </div>`;
+        }).join('');
+        if(filtered.length===0) container.innerHTML='<div class="empty-state">📭 Tidak ada folder</div>';
+    }
+    
+    // Long Press untuk Folder
+    function handleFolderLongPressStart(event, folderName) {
+        event.stopPropagation();
+        longPressTimeout = setTimeout(() => {
+            showMoveFolderModal(folderName);
+            clearLongPress();
+        }, 500);
+    }
+    
+    function handleLongPressEnd(event) {
+        clearLongPress();
+        document.querySelectorAll('.folder-card.long-press-active').forEach(el => {
+            el.classList.remove('long-press-active');
+        });
+    }
+    
+    function clearLongPress() {
+        if(longPressTimeout) {
+            clearTimeout(longPressTimeout);
+            longPressTimeout = null;
+        }
+    }
+    
+    function showMoveFolderModal(folderName) {
+        moveSourceFolder = folderName;
+        const targetSelect = document.getElementById('targetFolderSelect');
+        targetSelect.innerHTML = folders.filter(f => f.name !== folderName).map(f => `<option value="${escapeHtml(f.name)}">📁 ${escapeHtml(f.name)}</option>`).join('');
+        document.getElementById('moveSourceText').innerHTML = `Pindahkan folder <b>${escapeHtml(folderName)}</b> ke folder tujuan?<br><small>Semua produk akan ikut pindah</small>`;
+        document.getElementById('moveFolderModal').style.display = 'flex';
+    }
+    
+    function closeMoveFolderModal() {
+        document.getElementById('moveFolderModal').style.display = 'none';
+        moveSourceFolder = null;
+    }
+    
+    async function executeMoveFolder() {
+        const targetFolder = document.getElementById('targetFolderSelect').value;
+        if(!targetFolder || !moveSourceFolder) return;
+        if(confirm(`Pindahkan SEMUA produk dari folder "${moveSourceFolder}" ke "${targetFolder}"?\nFolder "${moveSourceFolder}" akan tetap ada (kosong).`)) {
+            for(let p of dbData) {
+                if(p.kategori === moveSourceFolder) p.kategori = targetFolder;
+            }
+            await saveAll();
+            renderFoldersGrid();
+            if(currentFolderObj && currentFolderObj.name === moveSourceFolder) openFolder(targetFolder);
+            closeMoveFolderModal();
+            showToast(`Produk dari ${moveSourceFolder} dipindahkan ke ${targetFolder}`);
+        }
+    }
+    
+    function openFolder(folderName) {
+        currentFolderObj = folders.find(f => f.name === folderName);
+        if(!currentFolderObj) return;
+        filteredProducts = dbData.filter(p => p.kategori === folderName);
+        filteredProducts.sort((a,b)=>{ let sa=a.stok||0, sb=b.stok||0; if(sa===0 && sb!==0) return -1; if(sa!==0 && sb===0) return 1; if(sa>=1 && sa<=3 && sb>=4) return -1; if(sa>=4 && sb>=1 && sb<=3) return 1; return a.nama.localeCompare(b.nama); });
+        currentPage = 0;
+        document.getElementById('currentFolderName').innerHTML = `📁 ${escapeHtml(folderName)}`;
+        document.getElementById('folderProductCount').innerHTML = `${filteredProducts.length} produk`;
+        renderProductList();
+        showScreen('products');
+    }
+    
+    function renderProductList() {
+        const start = currentPage * ITEMS_PER_PAGE;
+        const pageItems = filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+        const container = document.getElementById('listContainer');
+        if(pageItems.length===0) container.innerHTML='<div class="empty-state"><span>📭</span><p>Tidak ada produk</p><button class="btn-primary" style="margin-top:10px" onclick="showAddProduct()">+ Tambah Produk</button></div>';
+        else container.innerHTML = pageItems.map(item => {
+            const stock = item.stok || 0;
+            const nameColorClass = getStockColorClass(stock);
+            const badge = getStockBadge(stock);
+            const fotoSrc = item.foto1 || 'https://via.placeholder.com/65';
+            const hasFoto2 = item.foto2 ? true : false;
+            
+            return `<div class="product-item">
+                        <div style="position:relative">
+                            <img class="product-img" src="${fotoSrc}" onclick="event.stopPropagation(); openProductImages(${item.id})" onerror="this.src='https://via.placeholder.com/65'">
+                            ${hasFoto2 ? '<div class="product-images-preview"><img class="product-img-small" src="'+item.foto2+'" onclick="event.stopPropagation(); openProductImages('+item.id+',1)" onerror="this.style.display=\'none\'"></div>' : ''}
+                        </div>
+                        <div class="product-info">
+                            <div class="${nameColorClass}">${escapeHtml(item.nama)} ${badge}</div>
+                            <div class="product-stok">📦 Stok: <b>${stock}</b></div>
+                            <div class="edit-btn" onclick="event.stopPropagation(); editProduk(${item.id})">✏️ EDIT</div>
+                        </div>
+                        <div class="stock-buttons">
+                            <button class="stock-btn" onclick="event.stopPropagation(); ubahStok(${item.id}, -1)">−</button>
+                            <button class="stock-btn" onclick="event.stopPropagation(); ubahStok(${item.id}, 1)">+</button>
+                            <button class="stock-btn delete-btn" onclick="event.stopPropagation(); hapusProduk(${item.id})">🗑️</button>
+                        </div>
+                    </div>`;
+        }).join('');
+        const loadBtn = document.getElementById('loadMoreBtn');
+        if(filteredProducts.length > (currentPage+1)*ITEMS_PER_PAGE) loadBtn.classList.remove('hidden');
+        else loadBtn.classList.add('hidden');
+        document.getElementById('tampilProduk').innerHTML = `Menampilkan ${Math.min(filteredProducts.length, (currentPage+1)*ITEMS_PER_PAGE)} dari ${filteredProducts.length}`;
+        document.getElementById('totalProduk').innerHTML = `${dbData.length} total`;
+    }
+    
+    function openProductImages(productId, startIndex = 0) {
+        const product = dbData.find(p => p.id === productId);
+        if(!product) return;
+        currentZoomImages = [];
+        if(product.foto1) currentZoomImages.push(product.foto1);
+        if(product.foto2) currentZoomImages.push(product.foto2);
+        if(currentZoomImages.length === 0) return;
+        currentZoomIndex = Math.min(startIndex, currentZoomImages.length - 1);
+        document.getElementById('zoomImg').src = currentZoomImages[currentZoomIndex];
+        document.getElementById('imageCounter').innerHTML = `${currentZoomIndex+1} / ${currentZoomImages.length}`;
+        document.getElementById('zoomModal').style.display = 'flex';
+    }
+    
+    function prevImage() {
+        if(currentZoomImages.length === 0) return;
+        currentZoomIndex = (currentZoomIndex - 1 + currentZoomImages.length) % currentZoomImages.length;
+        document.getElementById('zoomImg').src = currentZoomImages[currentZoomIndex];
+        document.getElementById('imageCounter').innerHTML = `${currentZoomIndex+1} / ${currentZoomImages.length}`;
+    }
+    
+    function nextImage() {
+        if(currentZoomImages.length === 0) return;
+        currentZoomIndex = (currentZoomIndex + 1) % currentZoomImages.length;
+        document.getElementById('zoomImg').src = currentZoomImages[currentZoomIndex];
+        document.getElementById('imageCounter').innerHTML = `${currentZoomIndex+1} / ${currentZoomImages.length}`;
+    }
+    
+    function filterProducts() {
+        const kw = document.getElementById('searchProduct')?.value.toLowerCase() || '';
+        filteredProducts = dbData.filter(p => p.kategori === currentFolderObj?.name && p.nama.toLowerCase().includes(kw));
+        currentPage = 0;
+        renderProductList();
+    }
+    
+    function loadMore() { currentPage++; renderProductList(); }
+    function backToFolders() { showScreen('folders'); renderFoldersGrid(); }
+    function backToProducts() { if(currentFolderObj) openFolder(currentFolderObj.name); else showScreen('folders'); }
+    
+    async function ubahStok(id, delta) {
+        const idx = dbData.findIndex(p => p.id == id);
+        if(idx!==-1) {
+            dbData[idx].stok = Math.max(0, (dbData[idx].stok||0) + delta);
+            await saveAll();
+            if(currentFolderObj) openFolder(currentFolderObj.name);
+            showToast(`Stok: ${dbData[idx].stok}`);
+        }
+    }
+    
+    async function hapusProduk(id) {
+        if(confirm("Hapus produk?")) {
+            dbData = dbData.filter(p => p.id !== id);
+            await saveAll();
+            if(currentFolderObj) openFolder(currentFolderObj.name);
+            renderFoldersGrid();
+            showToast("Produk dihapus");
+        }
+    }
+    
+    function showAddProduct() {
+        resetForm();
+        document.getElementById('formTitle').innerText = '➕ Tambah Produk';
+        const select = document.getElementById('kategoriSelect');
+        select.innerHTML = folders.map(f => `<option value="${escapeHtml(f.name)}">📁 ${escapeHtml(f.name)}</option>`).join('');
+        if(currentFolderObj) select.value = currentFolderObj.name;
+        showScreen('addEdit');
+    }
+    
+    function editProduk(id) {
+        const p = dbData.find(x => x.id == id);
+        if(!p) return;
+        document.getElementById('editId').value = p.id;
+        document.getElementById('nama').value = p.nama;
+        const select = document.getElementById('kategoriSelect');
+        select.innerHTML = folders.map(f => `<option value="${escapeHtml(f.name)}">📁 ${escapeHtml(f.name)}</option>`).join('');
+        select.value = p.kategori;
+        
+        if(p.foto1 && p.foto1.startsWith('data:image')) {
+            pendingImage1 = p.foto1;
+            document.getElementById('previewImage1').src = p.foto1;
+            document.getElementById('previewContainer1').classList.remove('hidden');
+            document.getElementById('foto1Url').value = '';
+        } else if(p.foto1) {
+            document.getElementById('foto1Url').value = p.foto1;
+        }
+        
+        if(p.foto2 && p.foto2.startsWith('data:image')) {
+            pendingImage2 = p.foto2;
+            document.getElementById('previewImage2').src = p.foto2;
+            document.getElementById('previewContainer2').classList.remove('hidden');
+            document.getElementById('foto2Url').value = '';
+        } else if(p.foto2) {
+            document.getElementById('foto2Url').value = p.foto2;
+        }
+        
+        document.getElementById('formTitle').innerText = '✏️ Edit Produk';
+        showScreen('addEdit');
+    }
+    
+    async function simpanProduk() {
+        const id = document.getElementById('editId').value;
+        const nama = document.getElementById('nama').value.trim();
+        const kategori = document.getElementById('kategoriSelect').value;
+        
+        let foto1 = document.getElementById('foto1Url').value.trim() || pendingImage1 || "https://via.placeholder.com/200";
+        let foto2 = document.getElementById('foto2Url').value.trim() || pendingImage2 || null;
+        
+        if(!nama) return showToast("Nama wajib!");
+        
+        if(id) {
+            const idx = dbData.findIndex(p => p.id == id);
+            if(idx!==-1) dbData[idx] = { ...dbData[idx], nama, kategori, foto1, foto2 };
+        } else {
+            dbData.push({ id: Date.now(), nama, kategori, foto1, foto2, stok: 0 });
+        }
+        await saveAll();
+        renderFoldersGrid();
+        resetForm();
+        if(currentFolderObj && currentFolderObj.name === kategori) openFolder(kategori);
+        else if(currentFolderObj) openFolder(currentFolderObj.name);
+        else backToFolders();
+        showToast("Produk tersimpan");
+    }
+    
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('nama').value = '';
+        document.getElementById('foto1Url').value = '';
+        document.getElementById('foto2Url').value = '';
+        pendingImage1 = null;
+        pendingImage2 = null;
+        document.getElementById('previewContainer1').classList.add('hidden');
+        document.getElementById('previewContainer2').classList.add('hidden');
+    }
+    
+    function openCamera(index) { document.getElementById(`cameraInput${index}`).click(); }
+    function openGallery(index) { document.getElementById(`galleryInput${index}`).click(); }
+    
+    async function handleImageUpload(input, index) {
+        const file = input.files[0];
+        if(!file) return;
+        if(file.size > 5*1024*1024) { showToast("Max 5MB"); input.value=''; return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w=img.width, h=img.height;
+                if(w>800) { h=(h*800)/w; w=800; }
+                canvas.width=w; canvas.height=h;
+                canvas.getContext('2d').drawImage(img,0,0,w,h);
+                const base64 = canvas.toDataURL('image/jpeg',0.7);
+                if(index===1) {
+                    pendingImage1 = base64;
+                    document.getElementById('previewImage1').src = base64;
+                    document.getElementById('previewContainer1').classList.remove('hidden');
+                    document.getElementById('foto1Url').value = '';
+                } else {
+                    pendingImage2 = base64;
+                    document.getElementById('previewImage2').src = base64;
+                    document.getElementById('previewContainer2').classList.remove('hidden');
+                    document.getElementById('foto2Url').value = '';
+                }
+                showToast("Foto siap");
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        input.value = '';
+    }
+    
+    function clearPreview(index) {
+        if(index===1) { pendingImage1 = null; document.getElementById('foto1Url').value = ''; document.getElementById('previewContainer1').classList.add('hidden'); }
+        else { pendingImage2 = null; document.getElementById('foto2Url').value = ''; document.getElementById('previewContainer2').classList.add('hidden'); }
+    }
+    
+    // Folder Management
+    let editingFolderName = null;
+    
+    function showAddFolderModal() {
+        editingFolderName = null;
+        document.getElementById('folderModalTitle').innerText = 'Tambah Folder';
+        document.getElementById('newFolderName').value = '';
+        document.getElementById('addFolderModal').style.display = 'flex';
+    }
+    
+    function renameFolder(folderName) {
+        editingFolderName = folderName;
+        document.getElementById('folderModalTitle').innerText = 'Edit Nama Folder';
+        document.getElementById('newFolderName').value = folderName;
+        document.getElementById('addFolderModal').style.display = 'flex';
+    }
+    
+    function closeAddFolderModal() { document.getElementById('addFolderModal').style.display = 'none'; editingFolderName = null; }
+    
+    async function saveFolder() {
+        const newName = document.getElementById('newFolderName').value.trim().toUpperCase();
+        if(!newName) return showToast("Nama folder wajib");
+        
+        if(editingFolderName) {
+            if(newName === editingFolderName) { closeAddFolderModal(); return; }
+            if(folders.find(f=>f.name===newName)) return showToast("Nama folder sudah ada");
+            const oldName = editingFolderName;
+            const idx = folders.findIndex(f => f.name === oldName);
+            if(idx !== -1) folders[idx].name = newName;
+            for(let p of dbData) if(p.kategori === oldName) p.kategori = newName;
+            if(currentFolderObj && currentFolderObj.name === oldName) currentFolderObj.name = newName;
+            await saveAll();
+            renderFoldersGrid();
+            showToast(`Folder diubah menjadi ${newName}`);
+        } else {
+            if(folders.find(f=>f.name===newName)) return showToast("Folder sudah ada");
+            folders.push({ name: newName, cover: null });
+            await saveAll();
+            renderFoldersGrid();
+            showToast(`Folder ${newName} dibuat`);
+        }
+        closeAddFolderModal();
+    }
+    
+    async function editFolderCover(folderName) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w=img.width, h=img.height;
+                    if(w>400) { h=(h*400)/w; w=400; }
+                    canvas.width=w; canvas.height=h;
+                    canvas.getContext('2d').drawImage(img,0,0,w,h);
+                    const base64 = canvas.toDataURL('image/jpeg',0.7);
+                    const idx = folders.findIndex(f => f.name === folderName);
+                    if(idx!==-1) folders[idx].cover = base64;
+                    saveAll().then(() => renderFoldersGrid());
+                    showToast("Cover folder diupdate");
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    }
+    
+    async function deleteFolder(folderName) {
+        const isDefault = ["HONDA","YAMAHA","SUZUKI","KAWASAKI"].includes(folderName);
+        if(isDefault) {
+            if(confirm(`Folder default "${folderName}" tidak bisa dihapus. Hapus semua produk di dalamnya?`)) {
+                dbData = dbData.filter(p => p.kategori !== folderName);
+                await saveAll();
+                renderFoldersGrid();
+                showToast(`Produk di ${folderName} dihapus`);
+            }
+            return;
+        }
+        if(confirm(`Hapus folder "${folderName}" dan semua produk di dalamnya?`)) {
+            dbData = dbData.filter(p => p.kategori !== folderName);
+            folders = folders.filter(f => f.name !== folderName);
+            await saveAll();
+            renderFoldersGrid();
+            showToast(`Folder ${folderName} dihapus`);
+        }
+    }
+    
+    // Utilities
+    function showScreen(screen) {
+        document.getElementById('screenFolders').classList.toggle('hidden', screen!=='folders');
+        document.getElementById('screenProducts').classList.toggle('hidden', screen!=='products');
+        document.getElementById('screenAddEdit').classList.toggle('hidden', screen!=='addEdit');
+        document.querySelectorAll('.nav-item').forEach((el,i)=>el.classList.toggle('active', (screen==='folders'&&i===0)||(screen==='addEdit'&&i===1)));
+        if(screen==='folders') renderFoldersGrid();
+    }
+    
+    function closeZoom() { document.getElementById('zoomModal').style.display = 'none'; currentZoomImages = []; }
+    function showToast(msg) { let t=document.querySelector('.toast'); if(t) t.remove(); t=document.createElement('div'); t.className='toast'; t.innerHTML=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2000); }
+    function toggleMenu() { document.getElementById('menuDropdown').classList.toggle('show'); }
+    async function exportBackup() { const data=JSON.stringify({app:"StokStripPro",version:8,folders,payload:dbData}); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data])); a.download=`backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); showToast("Backup OK"); }
+    function showRestoreModal() { document.getElementById('modalRestore').style.display='flex'; toggleMenu(); }
+    function closeRestoreModal() { document.getElementById('modalRestore').style.display='none'; }
+    async function restoreFromFile() { const file=document.getElementById('restoreFile').files[0]; if(!file) return; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const json=JSON.parse(e.target.result); if(json.payload){ if(json.folders) folders=json.folders; dbData=json.payload; await saveAll(); renderFoldersGrid(); showToast(`Restore ${dbData.length} produk`); closeRestoreModal(); } }catch(err){ showToast("File corrupt"); } }; reader.readAsText(file); }
+    async function clearAllData() { if(confirm("⚠️ HAPUS SEMUA DATA?")){ dbData=[]; folders=[{name:"HONDA",cover:null},{name:"YAMAHA",cover:null},{name:"SUZUKI",cover:null},{name:"KAWASAKI",cover:null},{name:"BEAT",cover:null},{name:"SUPRA",cover:null},{name:"SCOOPY",cover:null}]; await saveAll(); renderFoldersGrid(); showToast("Semua data dihapus"); } }
+    async function manualSync() { await saveAll(); updateOnlineStatus(); showToast("Sinkron selesai"); }
+    function updateOnlineStatus() { const el=document.getElementById('syncStatus'); if(navigator.onLine){ el.innerHTML='✅ Online'; el.classList.remove('offline'); } else { el.innerHTML='📴 Offline'; el.classList.add('offline'); } }
+    async function exportToCSV() { let csv="ID,Nama,Folder,Stok,Foto1,Foto2\n"; for(const p of dbData) csv+=`"${p.id}","${escapeCsv(p.nama)}","${p.kategori}","${p.stok||0}","${p.foto1||''}","${p.foto2||''}"\n`; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv])); a.download=`stok_${new Date().toISOString().slice(0,10)}.csv`; a.click(); showToast("CSV export"); }
+    function escapeCsv(str){ return String(str).replace(/"/g,'""'); }
+    function escapeHtml(str){ if(!str) return ''; return String(str).replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    
+    document.addEventListener('click',(e)=>{ const menu=document.getElementById('menuDropdown'); const btn=document.querySelector('.menu-btn'); if(menu&&menu.classList.contains('show')&&!menu.contains(e.target)&&!btn.contains(e.target)) menu.classList.remove('show'); });
+    window.addEventListener('online',()=>{ updateOnlineStatus(); showToast('🌐 Online'); });
+    window.addEventListener('offline',()=>{ updateOnlineStatus(); showToast('📴 Offline'); });
+    init();
+</script>
+</body>
+</html>
